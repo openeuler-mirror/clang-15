@@ -2,7 +2,7 @@
 
 %global maj_ver 15
 %global min_ver 0
-%global patch_ver 6
+%global patch_ver 7
 %global clang_version %{maj_ver}.%{min_ver}.%{patch_ver}
 
 %global pkg_name clang%{maj_ver}
@@ -28,7 +28,7 @@
 
 Name:		%pkg_name
 Version:	%{clang_version}
-Release:	2
+Release:	1
 Summary:	A C language family front-end for LLVM
 
 License:	NCSA
@@ -381,6 +381,9 @@ LD_LIBRARY_PATH=%{buildroot}/%{pkg_libdir}  %{__ninja} check-all -C ./_build/
 %{_bindir}/git-clang-format%{bin_suffix}
 
 %changelog
+* Mon Feb 20 2023 Chenxi Mao <chenxi.mao@suse.com> - 15.0.7-1
+- Upgrade to 15.0.7.
+
 * Thu Feb 9 2023 Chenxi Mao <chenxi.mao@suse.com> - 15.0.6-2
 - Enable clang unit tests.
 - Leverage macro define instead of hardcode version number.
