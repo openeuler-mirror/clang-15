@@ -1,6 +1,8 @@
+%bcond_without check
+
 %global maj_ver 15
 %global min_ver 0
-%global patch_ver 6
+%global patch_ver 7
 %global clang_version %{maj_ver}.%{min_ver}.%{patch_ver}
 
 %global pkg_name clang%{maj_ver}
@@ -46,12 +48,15 @@ BuildRequires:	emacs
 BuildRequires:	libatomic
 BuildRequires:	llvm%{maj_ver}-devel = %{version}
 BuildRequires:	llvm%{maj_ver}-static = %{version}
+BuildRequires:	llvm%{maj_ver}-test = %{version}
+BuildRequires:	llvm%{maj_ver}-googletest = %{version}
+
 BuildRequires:	libxml2-devel
 BuildRequires:	multilib-rpm-config
 BuildRequires:	ninja-build
 BuildRequires:	ncurses-devel
 BuildRequires:	perl-generators
-BuildRequires:	python3-lit = %{version}
+BuildRequires:	python3-lit >= %{version}
 BuildRequires:	python3-sphinx
 BuildRequires:	python3-recommonmark
 BuildRequires:	python3-devel
@@ -150,7 +155,6 @@ clang-format integration for git.
 %setup -T -q -b 1 -n %{clang_tools_srcdir}
 %autopatch -m200 -p2
 
-
 # failing test case
 rm test/clang-tidy/checkers/altera/struct-pack-align.cpp
 
@@ -189,9 +193,11 @@ cd _build
 	-DCLANG_BUILD_TOOLS:BOOL=ON \
 	-DLLVM_CONFIG:FILEPATH=%{pkg_bindir}/llvm-config-%{maj_ver}-%{__isa_bits} \
 	-DCMAKE_INSTALL_PREFIX=%{install_prefix} \
-	-DCLANG_INCLUDE_TESTS:BOOL=OFF \
+	-DCLANG_INCLUDE_TESTS:BOOL=ON \
+	-DLLVM_EXTERNAL_LIT=%{_bindir}/lit \
+	-DLLVM_LIT_ARGS="-vv" \
 	-DLLVM_TABLEGEN_EXE:FILEPATH=%{_bindir}/llvm-tblgen-%{maj_ver} \
-	-DLLVM_MAIN_SRC_DIR=%{_datadir}/llvm/src \
+	-DLLVM_MAIN_SRC_DIR=%{_libdir}/llvm%{maj_ver}/src \
 	-DLLVM_BUILD_UTILS:BOOL=ON \
 	-DCLANG_ENABLE_ARCMT:BOOL=ON \
 	-DCLANG_ENABLE_STATIC_ANALYZER:BOOL=ON \
@@ -233,8 +239,8 @@ rm -Rvf %{buildroot}%{_datadir}/clang/index.js
 
 for f in %{buildroot}/%{install_bindir}/*; do
   filename=`basename $f`
-  if [ $filename != "clang-15" ]; then
-      ln -s ../../%{install_bindir}/$filename %{buildroot}/%{_bindir}/$filename%{bin_suffix}
+  if [ $filename != "clang%{bin_suffix}" ]; then
+      ln -s ../../%{install_bindir}/$filename %{buildroot}%{_bindir}/$filename%{bin_suffix}
   fi
 done
 
@@ -250,6 +256,9 @@ mkdir -p %{buildroot}%{pkg_libdir}/clang/%{version}/{include,lib,share}/
 rm -Rvf %{buildroot}%{_includedir}/clang-tidy/
 
 %check
+%if %{with check}
+LD_LIBRARY_PATH=%{buildroot}/%{pkg_libdir}  %{__ninja} check-all -C ./_build/
+%endif
 
 %files
 %license LICENSE.TXT
@@ -372,5 +381,13 @@ rm -Rvf %{buildroot}%{_includedir}/clang-tidy/
 %{_bindir}/git-clang-format%{bin_suffix}
 
 %changelog
+* Mon Feb 20 2023 Chenxi Mao <chenxi.mao@suse.com> - 15.0.7-1
+- Upgrade to 15.0.7.
+
+* Thu Feb 9 2023 Chenxi Mao <chenxi.mao@suse.com> - 15.0.6-2
+- Enable clang unit tests.
+- Leverage macro define instead of hardcode version number.
+- Remove duplicated character.
+
 * Mon Jan 2 2023 Chenxi Mao <chenxi.mao@suse.com> - 15.0.6-1
 - Package init
