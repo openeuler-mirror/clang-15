@@ -1,23 +1,9 @@
-# clang-15
+# C Language Family Front-end
 
 #### 介绍
-C Language Family Front-end
-
-#### 软件架构
-软件架构说明
-
-
-#### 安装教程
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### 使用说明
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
+The goal of the Clang project is to create a new C, C++, Objective C
+and Objective C++ front-end for the LLVM compiler. Its tools are built
+as libraries and designed to be loosely-coupled and extensible.
 
 #### 参与贡献
 
