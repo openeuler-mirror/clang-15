@@ -1,3 +1,4 @@
+%bcond_without sys_llvm
 %bcond_without check
 
 %global maj_ver 15
@@ -5,33 +6,35 @@
 %global patch_ver 7
 %global clang_version %{maj_ver}.%{min_ver}.%{patch_ver}
 
+%if %{with sys_llvm}
+%global pkg_name clang
+%global install_prefix %{_prefix}
+%else
 %global pkg_name clang%{maj_ver}
-%global bin_suffix -%{maj_ver}
 %global install_prefix %{_libdir}/llvm%{maj_ver}
+%endif
+
 %global install_bindir %{install_prefix}/bin
 %global install_includedir %{install_prefix}/include
+%if 0%{?__isa_bits} == 64
+%global install_libdir %{install_prefix}/lib64
+%else
 %global install_libdir %{install_prefix}/lib
+%endif
 %global install_libexecdir %{install_prefix}/libexec
 %global install_sharedir %{install_prefix}/share
 %global install_docdir %{install_sharedir}/doc
 
-%global pkg_bindir %{install_bindir}
-%global pkg_includedir %{install_includedir}
-%global pkg_libdir %{install_libdir}
-%global pkg_libexecdir %{install_libexecdir}
-%global pkg_sharedir %{install_sharedir}
-%global pkg_docdir %{install_sharedir}/doc
-
 %global clang_srcdir clang-%{clang_version}.src
 %global clang_tools_srcdir clang-tools-extra-%{clang_version}.src
-%global max_link_jobs 2
+%global max_link_jobs %{_smp_build_ncpus}
 
 # Disable LTO as this causes crash if gcc lto enabled.
 %define _lto_cflags %{nil}
 
-Name:		%pkg_name
+Name:		%{pkg_name}
 Version:	%{clang_version}
-Release:	2
+Release:	3
 Summary:	A C language family front-end for LLVM
 
 License:	NCSA
@@ -47,12 +50,19 @@ Patch201:   fedora-clang-tools-extra-Make-test-dependency-on-LLVMHello-.patch
 BuildRequires:	gcc
 BuildRequires:	gcc-c++
 BuildRequires:	cmake
-BuildRequires:	emacs
 BuildRequires:	libatomic
+
+%if %{with sys_llvm}
+BuildRequires:	llvm-devel = %{version}
+BuildRequires:	llvm-static = %{version}
+BuildRequires:	llvm-test = %{version}
+BuildRequires:	llvm-googletest = %{version}
+%else
 BuildRequires:	llvm%{maj_ver}-devel = %{version}
 BuildRequires:	llvm%{maj_ver}-static = %{version}
 BuildRequires:	llvm%{maj_ver}-test = %{version}
 BuildRequires:	llvm%{maj_ver}-googletest = %{version}
+%endif
 
 BuildRequires:	libxml2-devel
 BuildRequires:	multilib-rpm-config
@@ -200,13 +210,13 @@ cd _build
 	-DPYTHON_EXECUTABLE=%{__python3} \
 	-DCMAKE_SKIP_RPATH:BOOL=ON \
 	-DCLANG_BUILD_TOOLS:BOOL=ON \
-	-DLLVM_CONFIG:FILEPATH=%{pkg_bindir}/llvm-config-%{maj_ver}-%{__isa_bits} \
 	-DCMAKE_INSTALL_PREFIX=%{install_prefix} \
 	-DCLANG_INCLUDE_TESTS:BOOL=ON \
 	-DLLVM_EXTERNAL_LIT=%{_bindir}/lit \
+	-DLLVM_CONFIG:FILEPATH=%{install_bindir}/llvm-config \
+	-DLLVM_TABLEGEN_EXE:FILEPATH=%{install_bindir}/llvm-tblgen \
+	-DLLVM_MAIN_SRC_DIR=%{install_prefix}/src \
 	-DLLVM_LIT_ARGS="-vv" \
-	-DLLVM_TABLEGEN_EXE:FILEPATH=%{_bindir}/llvm-tblgen-%{maj_ver} \
-	-DLLVM_MAIN_SRC_DIR=%{_libdir}/llvm%{maj_ver}/src \
 	-DLLVM_BUILD_UTILS:BOOL=ON \
 	-DCLANG_ENABLE_ARCMT:BOOL=ON \
 	-DCLANG_ENABLE_STATIC_ANALYZER:BOOL=ON \
@@ -222,6 +232,11 @@ cd _build
 	-DCLANG_BUILD_EXAMPLES:BOOL=OFF \
 	-DBUILD_SHARED_LIBS=OFF \
 	-DCLANG_REPOSITORY_STRING="%{?distro} %{version}-%{release}" \
+%if 0%{?__isa_bits} == 64
+	-DLLVM_LIBDIR_SUFFIX=64 \
+%else
+	-DLLVM_LIBDIR_SUFFIX= \
+%endif
 	-DCLANG_DEFAULT_UNWINDLIB=libgcc
 
 %ninja_build
@@ -242,154 +257,108 @@ rm -Rvf %{buildroot}%{install_sharedir}/clang/clang-doc-default-stylesheet.css
 rm -Rvf %{buildroot}%{install_sharedir}/clang/index.js
 rm -vf %{buildroot}%{install_sharedir}/clang/bash-autocomplete.sh
 
-rm -Rvf %{buildroot}%{_docdir}/Clang/clang/html
-rm -Rvf %{buildroot}%{_datadir}/clang/clang-doc-default-stylesheet.css
-rm -Rvf %{buildroot}%{_datadir}/clang/index.js
-
-for f in %{buildroot}/%{install_bindir}/*; do
-  filename=`basename $f`
-  if [ $filename != "clang%{bin_suffix}" ]; then
-      ln -s ../../%{install_bindir}/$filename %{buildroot}%{_bindir}/$filename%{bin_suffix}
-  fi
-done
-
-# Create Manpage symlinks
-mkdir -p %{buildroot}/%{_mandir}/man1
-for f in %{buildroot}%{install_prefix}/share/man/man1/*; do
-  filename=`basename $f | cut -f 1 -d '.'`
-  mv $f %{buildroot}%{_mandir}/man1/$filename%{bin_suffix}.1
-done
-
-mkdir -p %{buildroot}%{pkg_libdir}/clang/%{version}/{include,lib,share}/
-
-rm -Rvf %{buildroot}%{_includedir}/clang-tidy/
+mkdir -p %{buildroot}%{install_libdir}/clang/%{version}/{include,lib,share}/
 
 %check
 %if %{with check}
-LD_LIBRARY_PATH=%{buildroot}/%{pkg_libdir}  %{__ninja} check-all -C ./_build/
+
+LD_LIBRARY_PATH=%{buildroot}/%{install_libdir}  %{__ninja} check-all -C ./_build/
 %endif
 
 %files
 %license LICENSE.TXT
-%{_bindir}/clang-%{maj_ver}
-%{_bindir}/clang++-%{maj_ver}
-%{_mandir}/man1/*
-%{_bindir}/clang-cl-%{maj_ver}
-%{_bindir}/clang-cpp-%{maj_ver}
-%{pkg_bindir}
+%{install_bindir}/clang
+%{install_bindir}/clang++
+%{install_bindir}/clang-%{maj_ver}
+%{install_bindir}/clang-cl
+%{install_bindir}/clang-cpp
+%{install_prefix}/share/man/man1/*
 
 %files libs
-%{pkg_libdir}/*.so.*
-%{pkg_libdir}/clang/%{version}
+%{install_libdir}/*.so.*
+%{install_libdir}/clang/%{version}/include/*
 
 %files devel
-%{pkg_libdir}/*.so
-%{pkg_includedir}/clang/
-%{pkg_includedir}/clang-c/
-%{pkg_includedir}/clang-tidy/
-%{pkg_libdir}/cmake/
+%{install_libdir}/*.so
+%{install_includedir}/clang/
+%{install_includedir}/clang-c/
+%{install_includedir}/clang-tidy/
+%{install_libdir}/cmake/*
+
 
 %files resource-filesystem
-%dir %{pkg_libdir}/clang/%{version}/
-%dir %{pkg_libdir}/clang/%{version}/include/
-%dir %{pkg_libdir}/clang/%{version}/lib/
-%dir %{pkg_libdir}/clang/%{version}/share/
+%dir %{install_libdir}/clang/%{version}/
+%dir %{install_libdir}/clang/%{version}/include/
+%dir %{install_libdir}/clang/%{version}/lib/
+%dir %{install_libdir}/clang/%{version}/share/
+%{install_libdir}/clang/%{version}/
 
 %files analyzer
-%{_bindir}/scan-view%{bin_suffix}
-%{_bindir}/scan-build%{bin_suffix}
-%{_bindir}/analyze-build%{bin_suffix}
-%{_bindir}/intercept-build%{bin_suffix}
-%{_bindir}/scan-build-py%{bin_suffix}
-%{pkg_libexecdir}/ccc-analyzer
-%{pkg_libexecdir}/c++-analyzer
-%{pkg_libexecdir}/analyze-c++
-%{pkg_libexecdir}/analyze-cc
-%{pkg_libexecdir}/intercept-c++
-%{pkg_libexecdir}/intercept-cc
-%{pkg_bindir}/scan-view
-%{pkg_bindir}/scan-build
-%{_mandir}/man1/*
-%{pkg_libdir}/libear
-%{pkg_libdir}/libscanbuild
-%{pkg_sharedir}/scan-view
-%{pkg_sharedir}/scan-build
+%{install_libexecdir}/ccc-analyzer
+%{install_libexecdir}/c++-analyzer
+%{install_libexecdir}/analyze-c++
+%{install_libexecdir}/analyze-cc
+%{install_libexecdir}/intercept-c++
+%{install_libexecdir}/intercept-cc
+%{install_bindir}/scan-view
+%{install_bindir}/scan-build
+%{install_bindir}/analyze-build
+%{install_bindir}/intercept-build
+%{install_bindir}/scan-build-py
+%{install_prefix}/share/man/man1/*
+%{install_prefix}/lib/libear
+%{install_prefix}/lib/libscanbuild
+%{install_sharedir}/scan-view
+%{install_sharedir}/scan-build
 
 
 %files tools-extra
-%{_bindir}/c-index-test%{bin_suffix}
-%{_bindir}/clang-apply-replacements%{bin_suffix}
-%{_bindir}/clang-change-namespace%{bin_suffix}
-%{_bindir}/clang-check%{bin_suffix}
-%{_bindir}/clang-doc%{bin_suffix}
-%{_bindir}/clang-extdef-mapping%{bin_suffix}
-%{_bindir}/clang-format%{bin_suffix}
-%{_bindir}/clang-include-fixer%{bin_suffix}
-%{_bindir}/clang-move%{bin_suffix}
-%{_bindir}/clang-offload-bundler%{bin_suffix}
-%{_bindir}/clang-offload-packager%{bin_suffix}
-%{_bindir}/clang-offload-wrapper%{bin_suffix}
-%{_bindir}/clang-linker-wrapper%{bin_suffix}
-%{_bindir}/clang-nvlink-wrapper%{bin_suffix}
-%{_bindir}/clang-pseudo%{bin_suffix}
-%{_bindir}/clang-query%{bin_suffix}
-%{_bindir}/clang-refactor%{bin_suffix}
-%{_bindir}/clang-rename%{bin_suffix}
-%{_bindir}/clang-reorder-fields%{bin_suffix}
-%{_bindir}/clang-repl%{bin_suffix}
-%{_bindir}/clang-scan-deps%{bin_suffix}
-%{_bindir}/clang-tidy%{bin_suffix}
-%{_bindir}/clangd%{bin_suffix}
-%{_bindir}/diagtool%{bin_suffix}
-%{_bindir}/hmaptool%{bin_suffix}
-%{_bindir}/pp-trace%{bin_suffix}
-%{_bindir}/find-all-symbols%{bin_suffix}
-%{_bindir}/modularize%{bin_suffix}
-%{_bindir}/run-clang-tidy%{bin_suffix}
-%{pkg_bindir}/c-index-test
-%{pkg_bindir}/clang-apply-replacements
-%{pkg_bindir}/clang-change-namespace
-%{pkg_bindir}/clang-check
-%{pkg_bindir}/clang-doc
-%{pkg_bindir}/clang-extdef-mapping
-%{pkg_bindir}/clang-format
-%{pkg_bindir}/clang-include-fixer
-%{pkg_bindir}/clang-move
-%{pkg_bindir}/clang-offload-bundler
-%{pkg_bindir}/clang-offload-packager
-%{pkg_bindir}/clang-offload-wrapper
-%{pkg_bindir}/clang-linker-wrapper
-%{pkg_bindir}/clang-nvlink-wrapper
-%{pkg_bindir}/clang-pseudo
-%{pkg_bindir}/clang-query
-%{pkg_bindir}/clang-refactor
-%{pkg_bindir}/clang-rename
-%{pkg_bindir}/clang-reorder-fields
-%{pkg_bindir}/clang-repl
-%{pkg_bindir}/clang-scan-deps
-%{pkg_bindir}/clang-tidy
-%{pkg_bindir}/clangd
-%{pkg_bindir}/diagtool
-%{pkg_bindir}/hmaptool
-%{pkg_bindir}/pp-trace
-%{pkg_bindir}/find-all-symbols
-%{pkg_bindir}/modularize
-%{pkg_bindir}/run-clang-tidy
-%{_mandir}/man1/diagtool%{bin_suffix}.1.*
-%{pkg_sharedir}/clang/clang-format.el
-%{pkg_sharedir}/clang/clang-rename.el
-%{pkg_sharedir}/clang/clang-include-fixer.el
-%{pkg_sharedir}/clang/clang-format.py
-%{pkg_sharedir}/clang/clang-format-diff.py
-%{pkg_sharedir}/clang/clang-include-fixer.py
-%{pkg_sharedir}/clang/clang-tidy-diff.py
-%{pkg_sharedir}/clang/run-find-all-symbols.py
-%{pkg_sharedir}/clang/clang-rename.py
+%{install_bindir}/c-index-test
+%{install_bindir}/clang-apply-replacements
+%{install_bindir}/clang-change-namespace
+%{install_bindir}/clang-check
+%{install_bindir}/clang-doc
+%{install_bindir}/clang-extdef-mapping
+%{install_bindir}/clang-format
+%{install_bindir}/clang-include-fixer
+%{install_bindir}/clang-move
+%{install_bindir}/clang-offload-bundler
+%{install_bindir}/clang-offload-packager
+%{install_bindir}/clang-offload-wrapper
+%{install_bindir}/clang-linker-wrapper
+%{install_bindir}/clang-nvlink-wrapper
+%{install_bindir}/clang-pseudo
+%{install_bindir}/clang-query
+%{install_bindir}/clang-refactor
+%{install_bindir}/clang-rename
+%{install_bindir}/clang-reorder-fields
+%{install_bindir}/clang-repl
+%{install_bindir}/clang-scan-deps
+%{install_bindir}/clang-tidy
+%{install_bindir}/clangd
+%{install_bindir}/diagtool
+%{install_bindir}/hmaptool
+%{install_bindir}/pp-trace
+%{install_bindir}/find-all-symbols
+%{install_bindir}/modularize
+%{install_bindir}/run-clang-tidy
+%{install_sharedir}/clang/clang-format.el
+%{install_sharedir}/clang/clang-rename.el
+%{install_sharedir}/clang/clang-include-fixer.el
+%{install_sharedir}/clang/clang-format.py
+%{install_sharedir}/clang/clang-format-diff.py
+%{install_sharedir}/clang/clang-include-fixer.py
+%{install_sharedir}/clang/clang-tidy-diff.py
+%{install_sharedir}/clang/run-find-all-symbols.py
+%{install_sharedir}/clang/clang-rename.py
 
 %files -n git-clang-format
-%{_bindir}/git-clang-format%{bin_suffix}
+%{install_bindir}/git-clang-format
 
 %changelog
+* Sat Jul 08 2023 cf-zhao <zhaochuanfeng@huawei.com> -15.0.7-3
+- Make this spec file support both system-version and multi-version.
+
 * Wed Jun 7 2023 Chenxi Mao <chenxi.mao@suse.com> - 15.0.7-2
 - Disable LTO as this causes crash if gcc lto enabled.
 - Disbale unit tests, there are 3 test failed.
