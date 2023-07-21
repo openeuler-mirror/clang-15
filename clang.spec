@@ -34,7 +34,7 @@
 
 Name:		%{pkg_name}
 Version:	%{clang_version}
-Release:	4
+Release:	5
 Summary:	A C language family front-end for LLVM
 
 License:	NCSA
@@ -90,6 +90,8 @@ BuildRequires: perl(Sys::Hostname)
 Requires:	%{name}-libs%{?_isa} = %{version}-%{release}
 
 Requires:	libstdc++-devel
+# Require gcc libs installed during rumtime
+Requires:	gcc
 Requires:	gcc-c++
 
 Provides:	clang(major) = %{maj_ver}
@@ -357,6 +359,9 @@ LD_LIBRARY_PATH=%{buildroot}/%{install_libdir}  %{__ninja} check-all -C ./_build
 %{install_bindir}/git-clang-format
 
 %changelog
+* Fri Jul 21 2023 liyunfei <liyunfei33@huawei.com> - 15.0.7-5
+- Add Requires: gcc to fix runtime error.
+
 * Thu Jul 20 2023 liyunfei <liyunfei33@huawei.com> - 15.0.7-4
 - Change the default DWARF version from 5 to 4.
 
