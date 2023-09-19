@@ -34,7 +34,7 @@
 
 Name:		%{pkg_name}
 Version:	%{clang_version}
-Release:	6
+Release:	7
 Summary:	A C language family front-end for LLVM
 
 License:	NCSA
@@ -46,6 +46,7 @@ Patch0:     fedora-PATCH-clang-Reorganize-gtest-integration.patch
 Patch1:     fedora-PATCH-clang-Don-t-install-static-libraries.patch
 Patch2:     0001-Revert-Clang-Change-the-default-DWARF-version-to-5.patch
 Patch3:     0002-Add-triples-for-X86_64-AArch64-openEuler-gcc.patch
+Patch4:     0003-riscv-Add-triple-for-riscv64-openEuler-gcc.patch
 
 Patch201:   fedora-clang-tools-extra-Make-test-dependency-on-LLVMHello-.patch
 
@@ -360,6 +361,9 @@ LD_LIBRARY_PATH=%{buildroot}/%{install_libdir}  %{__ninja} check-all -C ./_build
 %{install_bindir}/git-clang-format
 
 %changelog
+* Tue Sep 19 2023 Mingzheng Xing <xingmingzheng@iscas.ac.cn> - 15.0.7-7
+- Add triple for riscv64 openEuler gcc.
+
 * Mon Jul 24 2023 liyunfei <liyunfei33@huawei.com> - 15.0.7-6
 - Add triples for X86_64/AArch64 openEuler gcc.
 
