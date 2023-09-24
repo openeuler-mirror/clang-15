@@ -1,0 +1,27 @@
+From e642f1231b9f7edd67bb0507a471bb8b2815f6fe Mon Sep 17 00:00:00 2001
+From: Mingzheng Xing <xingmingzheng@iscas.ac.cn>
+Date: Wed, 20 Sep 2023 00:11:16 +0800
+Subject: [PATCH] riscv: Add triple for riscv64 openEuler gcc
+
+Signed-off-by: Mingzheng Xing <xingmingzheng@iscas.ac.cn>
+---
+ clang/lib/Driver/ToolChains/Gnu.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/clang/lib/Driver/ToolChains/Gnu.cpp b/clang/lib/Driver/ToolChains/Gnu.cpp
+index 665cdc31..037718c3 100644
+--- a/clang/lib/Driver/ToolChains/Gnu.cpp
++++ b/clang/lib/Driver/ToolChains/Gnu.cpp
+@@ -2280,7 +2280,8 @@ void Generic_GCC::GCCInstallationDetector::AddDefaultGCCPrefixes(
+   static const char *const RISCV64LibDirs[] = {"/lib64", "/lib"};
+   static const char *const RISCV64Triples[] = {"riscv64-unknown-linux-gnu",
+                                                "riscv64-linux-gnu",
+-                                               "riscv64-unknown-elf"};
++                                               "riscv64-unknown-elf",
++                                               "riscv64-openEuler-linux"};
+ 
+   static const char *const SPARCv8LibDirs[] = {"/lib32", "/lib"};
+   static const char *const SPARCv8Triples[] = {"sparc-linux-gnu",
+-- 
+2.23.0
+
